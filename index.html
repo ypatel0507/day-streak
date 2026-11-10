@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Day Streak">
+<meta name="theme-color" content="#eef1f6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d1119" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<title>Day Streak Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: one column app — plan tabs, countdown hero, "mark today" action, then a tappable grid of numbered days. */
+:root {
+  --bg: #eef1f6;
+  --surface: #ffffff;
+  --ink: #121826;
+  --muted: #5d6779;
+  --line: #d7dce6;
+  --accent: #2b59ff;
+  --accent-ink: #ffffff;
+  --done: #14a05a;
+  --done-soft: #dff3e8;
+  --missed: #f3e3e3;
+  --missed-ink: #a14646;
+  --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --font-body: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1119; --surface: #161c28; --ink: #eef1f7; --muted: #95a0b4; --line: #283043;
+    --accent: #5b80ff; --accent-ink: #ffffff; --done: #2fc77a; --done-soft: #143426;
+    --missed: #2f1d22; --missed-ink: #f09a9a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1119; --surface: #161c28; --ink: #eef1f7; --muted: #95a0b4; --line: #283043;
+  --accent: #5b80ff; --accent-ink: #ffffff; --done: #2fc77a; --done-soft: #143426;
+  --missed: #2f1d22; --missed-ink: #f09a9a; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none; user-select: none;
+  touch-action: manipulation;
+  overscroll-behavior-y: none;
+}
+input, textarea { -webkit-user-select: text; user-select: text; }
+.wrap {
+  max-width: 760px; margin: 0 auto; display: grid; gap: 18px;
+  padding: calc(env(safe-area-inset-top) + 16px) calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 40px) calc(env(safe-area-inset-left) + 16px);
+}
+.foot { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.foot .btn { font-size: 13px; padding: 8px 12px; }
+textarea.backup { font: 12px/1.4 ui-monospace, Menlo, monospace; width: 100%; min-height: 120px; padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); resize: vertical; }
+h1, h2 { font-family: var(--font-display); margin: 0; text-wrap: balance; letter-spacing: .01em; }
+button { font: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.top h1 { font-size: 28px; text-transform: uppercase; font-weight: 800; }
+.sync { font-size: 12px; color: var(--muted); }
+
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.tab {
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  padding: 7px 14px; border-radius: 999px; font-weight: 600; font-size: 14px;
+}
+.tab[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.tab.add { border-style: dashed; color: var(--muted); }
+
+.hero {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
+  padding: 20px; display: grid; gap: 16px;
+}
+.hero-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.plan-name { font-size: 22px; font-weight: 700; text-transform: uppercase; }
+.plan-meta { color: var(--muted); font-size: 13px; }
+.link-btn { background: none; border: none; color: var(--muted); font-size: 13px; text-decoration: underline; padding: 4px; }
+
+.count { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.count .big {
+  font-family: var(--font-display); font-weight: 800; font-size: 88px; line-height: .9;
+  font-variant-numeric: tabular-nums;
+}
+.count .label { font-family: var(--font-display); font-size: 24px; font-weight: 600; text-transform: uppercase; color: var(--muted); }
+
+.bar { height: 10px; background: var(--bg); border-radius: 999px; overflow: hidden; border: 1px solid var(--line); }
+.bar > span { display: block; height: 100%; background: var(--done); border-radius: 999px; transition: width .3s ease; }
+
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.stat { background: var(--bg); border-radius: 12px; padding: 10px 12px; }
+.stat b { display: block; font-family: var(--font-display); font-size: 28px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 12px; color: var(--muted); }
+
+.mark {
+  width: 100%; border: none; border-radius: 14px; padding: 16px;
+  background: var(--accent); color: var(--accent-ink);
+  font-family: var(--font-display); font-size: 24px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em;
+}
+.mark.is-done { background: var(--done-soft); color: var(--done); }
+.mark:disabled { opacity: .6; cursor: default; }
+
+.grid-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.grid-head h2 { font-size: 20px; text-transform: uppercase; }
+.legend { display: flex; gap: 12px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+
+.days { display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); gap: 8px; }
+.day {
+  aspect-ratio: 1; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
+  font-family: var(--font-display); font-weight: 700; font-size: 22px; line-height: 1;
+  position: relative; transition: transform .1s ease;
+}
+.day small { font-family: var(--font-body); font-size: 9px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px; }
+.day:active { transform: scale(.94); }
+.day.done { background: var(--done); border-color: var(--done); color: #fff; }
+.day.done small { color: rgba(255,255,255,.85); }
+.day.missed { background: var(--missed); border-color: transparent; color: var(--missed-ink); }
+.day.today { box-shadow: 0 0 0 3px var(--accent); border-color: var(--accent); }
+.day.future { color: var(--muted); }
+.day .tick { position: absolute; top: 4px; right: 6px; font-size: 13px; }
+
+.toast {
+  position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%);
+  background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px;
+  font-size: 14px; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity .2s;
+  max-width: calc(100% - 32px);
+}
+.toast.show { opacity: 1; }
+
+/* dialog */
+.scrim { position: fixed; inset: 0; background: rgba(8,12,20,.55); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 10; }
+.scrim.open { display: flex; }
+.sheet { background: var(--surface); color: var(--ink); border-radius: 18px; padding: 20px; width: 100%; max-width: 420px; display: grid; gap: 14px; border: 1px solid var(--line); }
+.sheet h2 { font-size: 24px; text-transform: uppercase; }
+.field { display: grid; gap: 6px; }
+.field label { font-size: 13px; font-weight: 600; color: var(--muted); }
+.field input {
+  font: inherit; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--ink); width: 100%;
+}
+.presets { display: flex; gap: 6px; flex-wrap: wrap; }
+.preset { border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 8px; padding: 6px 10px; font-size: 13px; font-weight: 600; }
+.preset[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.row { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.btn { border-radius: 10px; padding: 10px 16px; font-weight: 700; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.danger { color: var(--missed-ink); margin-right: auto; }
+.err { color: var(--missed-ink); font-size: 13px; min-height: 1em; margin: 0; }
+
+.empty { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 28px 20px; display: grid; gap: 12px; justify-items: start; }
+.empty h2 { font-size: 30px; text-transform: uppercase; }
+.empty p { margin: 0; color: var(--muted); max-width: 46ch; }
+
+@media (max-width: 420px) {
+  .count .big { font-size: 72px; }
+  .days { grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); gap: 6px; }
+  .day { font-size: 19px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header class="top">
+    <h1>Day Streak</h1>
+    <span class="sync" id="sync">Saved on this phone</span>
+  </header>
+
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Your plans"></nav>
+
+  <section id="view"></section>
+
+  <div class="foot">
+    <button type="button" class="btn" id="b-open">Back up or restore</button>
+  </div>
+</main>
+
+<div class="scrim" id="backup" role="dialog" aria-modal="true" aria-labelledby="b-title">
+  <div class="sheet">
+    <h2 id="b-title">Back up your days</h2>
+    <p style="margin:0;color:var(--muted);font-size:14px">Your days are saved on this phone. Copy this code and keep it in Notes. To restore, paste a code here and tap Restore.</p>
+    <label for="b-text" class="plan-meta">Backup code</label>
+    <textarea class="backup" id="b-text" spellcheck="false"></textarea>
+    <p class="err" id="b-err"></p>
+    <div class="row">
+      <button type="button" class="btn" id="b-close">Close</button>
+      <button type="button" class="btn" id="b-restore">Restore</button>
+      <button type="button" class="btn primary" id="b-copy">Copy code</button>
+    </div>
+  </div>
+</div>
+
+<div class="scrim" id="scrim" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
+  <form class="sheet" id="form" novalidate>
+    <h2 id="dlg-title">New plan</h2>
+    <div class="field">
+      <label for="f-name">Plan name</label>
+      <input id="f-name" maxlength="40" placeholder="Gym, Diet, 75 Hard…" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="f-days">How many days?</label>
+      <div class="presets" id="presets">
+        <button type="button" class="preset" data-v="21">21</button>
+        <button type="button" class="preset" data-v="30">30</button>
+        <button type="button" class="preset" data-v="60">60</button>
+        <button type="button" class="preset" data-v="75">75</button>
+        <button type="button" class="preset" data-v="90">90</button>
+        <button type="button" class="preset" data-v="100">100</button>
+      </div>
+      <input id="f-days" type="number" min="1" max="365" inputmode="numeric">
+    </div>
+    <div class="field">
+      <label for="f-start">Day 1 starts on</label>
+      <input id="f-start" type="date">
+    </div>
+    <p class="err" id="f-err"></p>
+    <div class="row">
+      <button type="button" class="btn danger" id="f-delete" hidden>Delete plan</button>
+      <button type="button" class="btn" id="f-cancel">Cancel</button>
+      <button type="submit" class="btn primary" id="f-save">Save</button>
+    </div>
+  </form>
+</div>
+
+<div class="scrim" id="confirm" role="dialog" aria-modal="true" aria-labelledby="c-title">
+  <div class="sheet">
+    <h2 id="c-title">Delete this plan?</h2>
+    <p style="margin:0;color:var(--muted)" id="c-text"></p>
+    <div class="row">
+      <button type="button" class="btn" id="c-no">Keep it</button>
+      <button type="button" class="btn primary" id="c-yes" style="background:var(--missed-ink);border-color:var(--missed-ink)">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  "use strict";
+  var LS_KEY = "day-streak-tracker-v1";
+  var state = { plans: [], activeId: null };
+  var editingId = null;
+
+  // ---------- date helpers (local calendar days) ----------
+  function todayStr() {
+    var d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function toDate(s) { var p = s.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  function addDays(s, n) { var d = toDate(s); d.setDate(d.getDate() + n); return d; }
+  function diffDays(a, b) { return Math.round((toDate(b) - toDate(a)) / 86400000); }
+  function fmt(d, opts) { return d.toLocaleDateString(undefined, opts || { month: "short", day: "numeric" }); }
+
+  function uid() { return "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function active() {
+    for (var i = 0; i < state.plans.length; i++) if (state.plans[i].id === state.activeId) return state.plans[i];
+    return state.plans[0] || null;
+  }
+
+  // ---------- stats ----------
+  function stats(p) {
+    var done = p.done || {};
+    var count = 0;
+    for (var k in done) if (+k >= 1 && +k <= p.days) count++;
+    var todayDay = diffDays(p.start, todayStr()) + 1;      // may be <1 (not started) or >days (over)
+    var cur = Math.min(Math.max(todayDay, 0), p.days);
+    // current streak: back from today (or yesterday if today not yet ticked)
+    var s = 0, i = cur;
+    if (i >= 1 && !done[i]) i--;
+    while (i >= 1 && done[i]) { s++; i--; }
+    // best streak
+    var best = 0, run = 0;
+    for (var d = 1; d <= p.days; d++) { if (done[d]) { run++; if (run > best) best = run; } else run = 0; }
+    return { count: count, left: p.days - count, todayDay: todayDay, streak: s, best: best, pct: Math.round(count / p.days * 100) };
+  }
+
+  // ---------- rendering ----------
+  var $ = function (id) { return document.getElementById(id); };
+
+  function renderTabs() {
+    var t = $("tabs");
+    t.textContent = "";
+    state.plans.forEach(function (p) {
+      var b = document.createElement("button");
+      b.className = "tab"; b.type = "button"; b.setAttribute("role", "tab");
+      b.setAttribute("aria-selected", String(p.id === (active() && active().id)));
+      b.textContent = p.name;
+      b.onclick = function () { state.activeId = p.id; persistLocal(); render(); };
+      t.appendChild(b);
+    });
+    var add = document.createElement("button");
+    add.className = "tab add"; add.type = "button"; add.textContent = "+ Add plan";
+    add.onclick = function () { openForm(null); };
+    t.appendChild(add);
+    t.hidden = state.plans.length === 0;
+  }
+
+  function renderEmpty(v) {
+    v.innerHTML =
+      '<div class="empty">' +
+      '<h2>Start your first plan</h2>' +
+      '<p>Pick how many days your gym or diet plan runs. Each day you finish, come back and tick it off. The tracker counts down the days left and keeps your streak.</p>' +
+      '<button class="btn primary" id="start-btn" type="button">Create a plan</button>' +
+      '</div>';
+    $("start-btn").onclick = function () { openForm(null); };
+  }
+
+  function render() {
+    renderTabs();
+    var v = $("view");
+    var p = active();
+    if (!p) { renderEmpty(v); return; }
+    var st = stats(p);
+    var done = p.done || {};
+    var endDate = addDays(p.start, p.days - 1);
+    var notStarted = st.todayDay < 1;
+    var over = st.todayDay > p.days;
+    var todayDone = !notStarted && !over && !!done[st.todayDay];
+
+    var dayLine;
+    if (notStarted) dayLine = "Starts " + fmt(toDate(p.start), { weekday: "short", month: "short", day: "numeric" }) + " · in " + (1 - st.todayDay) + " day" + (1 - st.todayDay === 1 ? "" : "s");
+    else if (over) dayLine = "Plan ended " + fmt(endDate, { month: "short", day: "numeric", year: "numeric" });
+    else dayLine = "Today is Day " + st.todayDay + " of " + p.days + " · ends " + fmt(endDate, { month: "short", day: "numeric" });
+
+    var bigLabel = st.left === 0 ? "All days done" : (st.left === 1 ? "day to go" : "days to go");
+    var markText = notStarted ? "Not started yet" : over ? (st.left === 0 ? "Plan complete" : "Plan period over") :
+      todayDone ? "✓ Day " + st.todayDay + " done · tap to undo" : "Mark Day " + st.todayDay + " done";
+
+    v.innerHTML =
+      '<div style="display:grid;gap:18px">' +
+      '<div class="hero">' +
+        '<div class="hero-head"><div><div class="plan-name"></div><div class="plan-meta"></div></div>' +
+        '<button class="link-btn" id="edit-btn" type="button">Edit plan</button></div>' +
+        '<div class="count"><span class="big">' + st.left + '</span><span class="label">' + bigLabel + '</span></div>' +
+        '<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="' + p.days + '" aria-valuenow="' + st.count + '" aria-label="Days completed"><span style="width:' + st.pct + '%"></span></div>' +
+        '<div class="stats">' +
+          '<div class="stat"><b>' + st.count + '/' + p.days + '</b><span>Days complete</span></div>' +
+          '<div class="stat"><b>' + st.streak + '</b><span>Current streak</span></div>' +
+          '<div class="stat"><b>' + st.best + '</b><span>Best streak</span></div>' +
+        '</div>' +
+        '<button class="mark' + (todayDone ? ' is-done' : '') + '" id="mark-btn" type="button"' + ((notStarted || over) ? ' disabled' : '') + '>' + markText + '</button>' +
+      '</div>' +
+      '<div class="grid-head"><h2>All days</h2>' +
+        '<div class="legend"><span><i style="background:var(--done)"></i>Done</span><span><i style="background:var(--missed)"></i>Missed</span><span><i style="box-shadow:0 0 0 2px var(--accent) inset"></i>Today</span></div>' +
+      '</div>' +
+      '<div class="days" id="days"></div>' +
+      '<p class="plan-meta" style="margin:0">Tap any day to tick it off or undo it. Missed a check-in? You can still tick past days.</p>' +
+      '</div>';
+
+    v.querySelector(".plan-name").textContent = p.name;
+    v.querySelector(".plan-meta").textContent = dayLine;
+    $("edit-btn").onclick = function () { openForm(p.id); };
+    $("mark-btn").onclick = function () { if (!notStarted && !over) toggle(p, st.todayDay); };
+
+    var grid = $("days");
+    var frag = document.createDocumentFragment();
+    for (var d = 1; d <= p.days; d++) {
+      var b = document.createElement("button");
+      b.type = "button";
+      var cls = "day";
+      var isDone = !!done[d];
+      if (isDone) cls += " done";
+      else if (d < st.todayDay) cls += " missed";
+      else if (d > st.todayDay) cls += " future";
+      if (d === st.todayDay) cls += " today";
+      b.className = cls;
+      var date = addDays(p.start, d - 1);
+      b.innerHTML = '<small>Day</small>' + d + (isDone ? '<span class="tick" aria-hidden="true">✓</span>' : '');
+      b.title = "Day " + d + " · " + fmt(date, { weekday: "short", month: "short", day: "numeric" }) + (isDone ? " · done" : "");
+      b.setAttribute("aria-label", b.title);
+      b.setAttribute("aria-pressed", String(isDone));
+      (function (day) { b.onclick = function () { toggle(p, day); }; })(d);
+      frag.appendChild(b);
+    }
+    grid.appendChild(frag);
+  }
+
+  // ---------- actions ----------
+  function toggle(p, day) {
+    p.done = p.done || {};
+    if (p.done[day]) { delete p.done[day]; toast("Day " + day + " unticked"); }
+    else {
+      p.done[day] = todayStr();
+      var st = stats(p);
+      toast(st.left === 0 ? "Day " + day + " done. You finished all " + p.days + " days!" :
+        "Day " + day + " done ✓  " + st.left + " to go");
+    }
+    save();
+    render();
+  }
+
+  var toastTimer;
+  function toast(msg) {
+    var t = $("toast"); t.textContent = msg; t.classList.add("show");
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove("show"); }, 2200);
+  }
+
+  // ---------- form ----------
+  function setPreset(v) {
+    Array.prototype.forEach.call($("presets").children, function (b) { b.setAttribute("aria-pressed", String(+b.dataset.v === +v)); });
+  }
+  $("presets").addEventListener("click", function (e) {
+    var b = e.target.closest(".preset"); if (!b) return;
+    $("f-days").value = b.dataset.v; setPreset(b.dataset.v);
+  });
+  $("f-days").addEventListener("input", function () { setPreset(this.value); });
+
+  function openForm(id) {
+    editingId = id;
+    var p = id ? state.plans.filter(function (x) { return x.id === id; })[0] : null;
+    $("dlg-title").textContent = p ? "Edit plan" : "New plan";
+    $("f-name").value = p ? p.name : (state.plans.length === 0 ? "Gym" : "");
+    $("f-days").value = p ? p.days : 30;
+    $("f-start").value = p ? p.start : todayStr();
+    setPreset($("f-days").value);
+    $("f-delete").hidden = !p;
+    $("f-err").textContent = "";
+    $("scrim").classList.add("open");
+    setTimeout(function () { $("f-name").focus(); }, 30);
+  }
+  function closeForm() { $("scrim").classList.remove("open"); }
+  $("f-cancel").onclick = closeForm;
+  $("scrim").addEventListener("click", function (e) { if (e.target === this) closeForm(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") { closeForm(); $("confirm").classList.remove("open"); $("backup").classList.remove("open"); }
+  });
+
+  $("form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var name = $("f-name").value.trim();
+    var days = parseInt($("f-days").value, 10);
+    var start = $("f-start").value;
+    if (!name) { $("f-err").textContent = "Give your plan a name, like Gym or Diet."; return; }
+    if (!(days >= 1 && days <= 365)) { $("f-err").textContent = "Choose between 1 and 365 days."; return; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) { $("f-err").textContent = "Pick the date Day 1 starts."; return; }
+    if (editingId) {
+      var p = state.plans.filter(function (x) { return x.id === editingId; })[0];
+      p.name = name; p.days = days; p.start = start;
+      for (var k in p.done) if (+k > days) delete p.done[k];
+    } else {
+      var np = { id: uid(), name: name, days: days, start: start, done: {} };
+      state.plans.push(np); state.activeId = np.id;
+    }
+    closeForm(); save(); render();
+  });
+
+  $("f-delete").onclick = function () {
+    var p = state.plans.filter(function (x) { return x.id === editingId; })[0];
+    if (!p) return;
+    $("c-text").textContent = "“" + p.name + "” and all its ticked days will be removed.";
+    closeForm();
+    $("confirm").classList.add("open");
+  };
+  $("c-no").onclick = function () { $("confirm").classList.remove("open"); };
+  $("c-yes").onclick = function () {
+    state.plans = state.plans.filter(function (x) { return x.id !== editingId; });
+    state.activeId = state.plans[0] ? state.plans[0].id : null;
+    $("confirm").classList.remove("open");
+    save(); render(); toast("Plan deleted");
+  };
+
+  // ---------- storage ----------
+  function persistLocal() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {}
+  }
+  function loadLocal() {
+    try { var s = JSON.parse(localStorage.getItem(LS_KEY) || "null"); if (s && Array.isArray(s.plans)) return s; } catch (e) {}
+    return null;
+  }
+  function setSync(text) { $("sync").textContent = text; }
+
+  function save() { persistLocal(); }
+
+  var cached = loadLocal();
+  if (cached) { state.plans = cached.plans; state.activeId = cached.activeId; }
+  setSync("Saved on this phone");
+  render();
+
+  // ---------- backup / restore ----------
+  function openBackup() {
+    $("b-text").value = btoa(unescape(encodeURIComponent(JSON.stringify({ v: 1, plans: state.plans }))));
+    $("b-err").textContent = "";
+    $("backup").classList.add("open");
+  }
+  $("b-open").onclick = openBackup;
+  $("b-close").onclick = function () { $("backup").classList.remove("open"); };
+  $("backup").addEventListener("click", function (e) { if (e.target === this) this.classList.remove("open"); });
+  $("b-copy").onclick = function () {
+    var t = $("b-text");
+    var done = function () { toast("Backup code copied. Paste it in Notes."); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(t.value).then(done, function () { t.select(); document.execCommand("copy"); done(); });
+    } else { t.select(); document.execCommand("copy"); done(); }
+  };
+  $("b-restore").onclick = function () {
+    try {
+      var d = JSON.parse(decodeURIComponent(escape(atob($("b-text").value.trim()))));
+      if (!d || !Array.isArray(d.plans)) throw 0;
+      d.plans.forEach(function (p) { if (!p.id || !p.name || !(p.days > 0) || !p.start) throw 0; p.done = p.done || {}; });
+      state.plans = d.plans; state.activeId = d.plans[0] ? d.plans[0].id : null;
+      save(); render(); $("backup").classList.remove("open"); toast("Your days are restored");
+    } catch (e) { $("b-err").textContent = "That code didn\u2019t work. Paste the whole backup code and try again."; }
+  };
+
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) render(); });
+  // roll over to the new day if the page stays open past midnight
+  var lastDay = todayStr();
+  setInterval(function () { if (todayStr() !== lastDay) { lastDay = todayStr(); render(); } }, 60000);
+})();
+</script>
+</body>
+</html>
