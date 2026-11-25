@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Workout Tracker</title>
+<meta name="theme-color" content="#d9232a">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Workout">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: a coach's clipboard — direct, energetic, no fluff
+   IDEA: the gym logbook card you tick off between sets
+   PICTURE: today's session as a timed checklist with tappable set bubbles, under a solid red header band
+   COLOUR and TYPE: ShredCode red field, white/near-black ground; Barlow Condensed for numbers and titles, Barlow body
+   LAYOUT: header band → week strip → today's checklist → month calendar + stats → settings */
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#131315);--ink:light-dark(#151515,#f2f2f2);--mut:light-dark(#6b6b6b,#a0a0a6);--line:light-dark(#e6e6e6,#2a2a2e);--card:light-dark(#f5f5f6,#1c1c1f);--red:#d9232a;--red2:light-dark(#fde8e8,#3a1517);--ok:light-dark(#d9232a,#ff4d52)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Barlow,system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3,.num{font-family:"Barlow Condensed",Barlow,sans-serif;margin:0}
+.wrap{max-width:760px;margin:0 auto;padding:0 max(4vw,14px)}
+header{background:var(--red);color:#fff;padding:calc(14px + env(safe-area-inset-top)) 0 18px}
+.top{display:flex;align-items:center;gap:8px}
+.top .lbl{flex:1;text-align:center;font-weight:600;font-size:15px}
+.nav{width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.16);color:#fff;font-size:22px;cursor:pointer}
+.nav:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid #ffd2d3;outline-offset:2px}
+.hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;margin-top:10px}
+.hero h1{font-size:clamp(34px,8vw,50px);line-height:1.02;font-weight:800;text-transform:uppercase}
+.meta{font-size:15px;opacity:.92;margin-top:4px}
+.meta b{font-weight:600}
+.ring{width:84px;height:84px;position:relative}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring span{position:absolute;inset:0;display:grid;place-items:center;font:800 24px "Barlow Condensed"}
+.today-btn{margin-top:10px;background:#fff;color:var(--red);border:0;border-radius:99px;padding:8px 16px;font:600 14px Barlow;cursor:pointer;min-height:36px}
+.week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin:14px 0 4px}
+.wd{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:8px 2px;text-align:center;cursor:pointer;color:var(--ink);font:inherit;min-height:64px}
+.wd small{display:block;font-size:12px;color:var(--mut)}
+.wd .num{font-size:20px;font-weight:600;display:block;line-height:1.1}
+.wd i{display:block;font-style:normal;font-size:11px;font-weight:600;color:var(--mut);margin-top:2px}
+.wd.sel{border-color:var(--red);box-shadow:inset 0 0 0 1px var(--red)}
+.wd.done{background:var(--red);border-color:var(--red);color:#fff}.wd.done small,.wd.done i{color:#fff}
+.wd.part i{color:var(--red)}
+.wd.istoday .num{text-decoration:underline;text-underline-offset:3px}
+section.grp{margin-top:22px}
+.gh{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid var(--ink);padding-bottom:4px}
+.gh h2{font-size:22px;font-weight:800;text-transform:uppercase}
+.gh span{font-size:14px;color:var(--mut)}
+.ex{display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.ex .t{font:600 15px "Barlow Condensed";color:var(--mut);white-space:nowrap}
+.ex .n{font-weight:600;line-height:1.25}
+.ex .d{font-size:14px;color:var(--mut)}
+.ex .d b{color:var(--ink);font-weight:600}
+.ex.fin .n{text-decoration:line-through;text-decoration-color:var(--red);text-decoration-thickness:2px}
+.sets{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center}
+.b{width:36px;height:36px;border-radius:50%;border:2px solid var(--line);background:transparent;color:var(--mut);font:600 15px "Barlow Condensed";cursor:pointer;padding:0}
+.b.on{background:var(--red);border-color:var(--red);color:#fff}
+.kg{width:76px;height:36px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:16px Barlow;padding:0 8px}
+.chk{width:44px;height:44px;border-radius:12px;border:2px solid var(--line);background:transparent;cursor:pointer;display:grid;place-items:center;padding:0}
+.chk svg{width:24px;height:24px;stroke:transparent}
+.chk.on{background:var(--red);border-color:var(--red)}.chk.on svg{stroke:#fff}
+.rest{background:var(--card);border-radius:16px;padding:20px;margin-top:20px}
+.rest h2{font-size:28px;font-weight:800;text-transform:uppercase}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin:20px 0 6px}
+.btn{min-height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:600 15px Barlow;cursor:pointer}
+.btn.pri{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}
+.st{background:var(--card);border-radius:14px;padding:12px}
+.st .num{font-size:34px;font-weight:800;line-height:1;display:block}
+.st small{color:var(--mut);font-size:13px}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-top:10px}
+.cal div{aspect-ratio:1;border-radius:8px;display:grid;place-items:center;font:600 15px "Barlow Condensed";background:var(--card);cursor:pointer;position:relative}
+.cal .h{background:none;color:var(--mut);font:500 12px Barlow;aspect-ratio:auto;cursor:default}
+.cal .e{background:none;cursor:default}
+.cal .done{background:var(--red);color:#fff}
+.cal .part{box-shadow:inset 0 0 0 2px var(--red)}
+.cal .miss{color:var(--mut);text-decoration:line-through}
+.cal .rd{color:var(--mut);background:none;border:1px dashed var(--line)}
+.cal .tdy{outline:2px solid var(--ink);outline-offset:1px}
+.calh{display:flex;align-items:center;justify-content:space-between;margin-top:28px}
+.calh h2{font-size:22px;font-weight:800;text-transform:uppercase}
+.calh button{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:18px;cursor:pointer}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--mut);margin-top:8px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px}
+details{margin:28px 0;background:var(--card);border-radius:14px;padding:4px 16px}
+summary{cursor:pointer;font-weight:600;padding:12px 0;min-height:44px}
+label{display:block;font-size:14px;color:var(--mut);margin:10px 0 4px}
+details input{height:44px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:16px Barlow;padding:0 10px;width:100%;max-width:260px}
+.note{font-size:13px;color:var(--mut);margin:8px 0 14px}
+textarea{width:100%;min-height:90px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:13px monospace;padding:8px}
+.sync{font-size:12px;color:var(--mut);text-align:center;margin-bottom:24px}
+.confirm{display:none;gap:8px;align-items:center;font-size:14px}
+.confirm.show{display:flex}
+@media(max-width:420px){.ex{grid-template-columns:52px minmax(0,1fr) auto;gap:8px}.ring{width:70px;height:70px}.wd .num{font-size:18px}}
+@media(prefers-reduced-motion:no-preference){.b,.chk,.wd{transition:background .15s,border-color .15s}.ring circle{transition:stroke-dashoffset .4s}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="top">
+      <button class="nav" id="prev" aria-label="Previous day">‹</button>
+      <div class="lbl" id="dlabel"></div>
+      <button class="nav" id="next" aria-label="Next day">›</button>
+    </div>
+    <div class="hero">
+      <div>
+        <h1 id="title"></h1>
+        <div class="meta" id="meta"></div>
+        <button class="today-btn" id="gotoday" hidden>Back to today</button>
+      </div>
+      <div class="ring" aria-hidden="true"><svg viewBox="0 0 84 84"><circle cx="42" cy="42" r="36" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="8"/><circle id="arc" cx="42" cy="42" r="36" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-dasharray="226.2" stroke-dashoffset="226.2"/></svg><span id="pct">0%</span></div>
+    </div>
+  </div>
+</header>
+<main class="wrap">
+  <div class="week" id="week"></div>
+  <div id="list"></div>
+  <div class="actions" id="acts">
+    <button class="btn pri" id="alldone">Tick everything</button>
+    <button class="btn" id="clr">Clear this day</button>
+    <span class="confirm" id="cfm">Clear all ticks? <button class="btn" id="cyes">Yes, clear</button><button class="btn" id="cno">Cancel</button></span>
+  </div>
+  <div class="stats" id="stats"></div>
+  <div class="calh"><button id="mprev" aria-label="Previous month">‹</button><h2 id="mtitle"></h2><button id="mnext" aria-label="Next month">›</button></div>
+  <div class="cal" id="cal"></div>
+  <div class="legend"><span><i style="background:var(--red)"></i>Done</span><span><i style="box-shadow:inset 0 0 0 2px var(--red)"></i>Partly done</span><span><i style="border:1px dashed var(--mut)"></i>Rest day</span></div>
+  <details>
+    <summary>Schedule settings</summary>
+    <label for="start">Week 1, Day 1 starts on</label>
+    <input type="date" id="start">
+    <label for="stime">Workout start time</label>
+    <input type="time" id="stime">
+    <p class="note">Days repeat every week: Day 1 Upper A · Day 2 Lower A · Day 3 Rest · Day 4 Upper B · Day 5 Lower B · Days 6–7 Rest. Clock times and durations are estimates (about 40 s per set plus your rest times); cardio is counted at the top of its range.</p>
+  </details>
+  <details>
+    <summary>Backup &amp; restore</summary>
+    <p class="note">Your ticks are saved on this phone only. Copy a backup now and then (paste it in your notes) so you can restore it after clearing your browser or switching phones.</p>
+    <button class="btn" id="bcopy">Copy backup</button>
+    <label for="bin">Paste a backup to restore</label>
+    <textarea id="bin" placeholder="Paste backup text here"></textarea>
+    <div class="actions"><button class="btn" id="brest">Restore</button></div>
+    <p class="note" id="bmsg"></p>
+  </details>
+  <p class="sync" id="sync">Saved on this phone · works offline</p>
+</main>
+<script>
+{
+const W=[['Treadmill walking','4–5 min',300],['Arm circles forward','30 sec',30],['Arm circles backward','30 sec',30],['Squats','30 sec',30],['Star toe touches','30 sec',30],['Jumping jacks','30 sec',30],['Pike push-ups','30 sec',30],['Pull-ups','30–45 sec',45]].map((a,i)=>({id:'wu'+i,n:a[0],r:a[1],s:1,w:a[2],rest:0,tr:0}));
+const X=(id,n,s,r,rest,o={})=>({id,n,s,r,rest,w:o.w||40,kg:o.kg!==false,tr:60,note:o.note});
+const C=(id,n,r,mins)=>({id,n,s:1,r,rest:0,w:mins*60,kg:false,tr:0});
+const S=(p,arr)=>arr.map((a,i)=>({id:p+'cd'+i,n:a[0],r:a[1],s:1,w:a[2]||60,rest:0,tr:0}));
+const DAYS={
+UA:{name:'Upper Body A',g:[['Warm-up',W],['Strength',[X('ua1','Barbell / DB bench press',3,'6–8',90),X('ua2','Lat pull-down',3,'8–10',90),X('ua3','Incline DB press',3,'8–12',90),X('ua4','Chest-supported row',3,'8–12',60),X('ua5','Dumbbell lateral raises',3,'12–15',60),X('ua6','Incline DB curl',2,'10–15',60),X('ua7','Rope triceps pushdown',2,'10–15',60)]],
+['Core & mobility',[X('ua8','Plank hold',2,'30 s–1 min',60,{w:60,kg:false}),X('ua9','Cat-camel',1,'10 reps',60,{kg:false})]],['Cardio finisher',[C('ua10','Air bike','25–30 min',30)]],
+['Cool-down stretch',S('ua',[['Wall chest opener','30 s/side'],['Overhead triceps stretch','30 s/side'],['Cross-body shoulder stretch','30 s/side'],['Neck lateral stretch','20 s/side',40],['Box breathing','1–2 min',90]])]]},
+LA:{name:'Lower A',g:[['Warm-up',W],['Build-up sets',[X('la1','Bodyweight squats',3,'10',90,{kg:false}),X('la2','Wall sit hold',2,'30 s–2 min',60,{w:75,kg:false})]],['Strength',[X('la3','Back squats',3,'6–8',60),X('la4','Romanian deadlift',3,'8–10',60),X('la5','Leg press',3,'10–12',60),X('la6','Seated leg curl',3,'10–15',60),X('la7','Standing calf raises',2,'12–15',60)]],
+['Core & mobility',[X('la8','Russian twist',2,'15/side',45,{kg:false})]],['Cardio',[C('la9','Incline walk','25–30 min',30)]],
+['Cool-down stretch',S('la',[['Standing hamstring stretch','30 s/side'],['Couch stretch','30 s/side'],['Glute stretch (lying figure 4)','30 s/side'],['Calf wall stretch','20 s/side',40],['Supine knee-to-chest pull','2 × 20 s',40]])]]},
+UB:{name:'Upper Body B',g:[['Warm-up',W],['Strength',[X('ub1','Incline dumbbell press',3,'8–12',90),X('ub2','Seated cable row',3,'8–12',90),X('ub3','Machine chest press',3,'10–12',90),X('ub4','Lat pull-down',3,'10–12',90),X('ub5','Seated DB shoulder press',3,'8–12',90),X('ub6','Straight-rod biceps curl (superset)',2,'10-10-10',90,{w:75}),X('ub7','Overhead cable triceps extension',2,'10–15',90),X('ub8','Preacher curl',2,'12',90)]],
+['Cardio finisher',[C('ub9','Stair master','20–30 min',30)]],
+['Cool-down stretch',S('ub',[['Cross-body shoulder stretch','30 s/arm'],['Overhead triceps stretch','30 s/arm'],['Chest wall stretch','30–45 s',45],['Biceps wall stretch','30 s',30],['Seated neck & trap stretch','30 s',30]])]]},
+LB:{name:'Lower B',g:[['Warm-up',W],['Strength',[X('lb1','Hack squats / front squats',3,'8–10',90),X('lb2','Hip thrust',3,'8–10',90),X('lb3','Bulgarian split squats',3,'8–12 each leg',90,{w:70}),X('lb4','Seated leg curl',3,'10–15',60),X('lb5','Seated calf raises',3,'12–15',60),X('lb6','Leg extension',3,'12–15',60)]],
+['Core & mobility',[X('lb7','Side planks',2,'30 s/side',45,{w:60,kg:false})]],['Cardio',[C('lb8','Incline walk','25–30 min',30)]],
+['Cool-down stretch',S('lb',[['Cross-body shoulder stretch','30 s/arm'],['Overhead triceps stretch','30 s/arm'],['Standing toe reach','30–45 s',45],['Seated pigeon stretch','30 s',40],['Kneeling hip flexor stretch','30 s',40]])]]},
+R:{name:'Rest Day',rest:true,g:[['Flat-foot exercises (optional)',[['Arch doming','10 reps'],['Toe spreading & lifting','10 reps'],['Towel scrunches','10 reps'],['Tree pose','45 s/side']].map((a,i)=>({id:'rf'+i,n:a[0],r:a[1],s:1,w:60,rest:0,tr:0}))],
+['Pranayama (optional)',[['Yogic breathing','5–7 breaths'],['Diaphragmatic breathing','5–7 breaths'],['Bhramari','5 hums']].map((a,i)=>({id:'rp'+i,n:a[0],r:a[1],s:1,w:60,rest:0,tr:0}))]]}};
+const CYCLE=['UA','LA','R','UB','LB','R','R'];
+const DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const KEY='shredcode-tracker-v1';
+const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const parse=s=>{const[a,b,c]=s.split('-').map(Number);return new Date(a,b-1,c)};
+const add=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
+const diff=(a,b)=>Math.round((parse(iso(a))-parse(iso(b)))/864e5);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let st={start:'2026-11-23',time:'18:00',log:{},t:0};
+try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.log)st=s}catch(e){}
+const today=parse(iso(new Date()));
+let sel=new Date(today),mon=new Date(today.getFullYear(),today.getMonth(),1);
+const dayInfo=d=>{const k=diff(d,parse(st.start));const i=((k%7)+7)%7;return{key:CYCLE[i],dayNo:i+1,week:Math.floor(k/7)+1,before:k<0}};
+const items=key=>DAYS[key].g.flatMap(g=>g[1]);
+const units=key=>items(key).reduce((a,x)=>a+x.s,0);
+const entry=d=>st.log[iso(d)]||{s:{},kg:{}};
+const pctOf=d=>{const{key}=dayInfo(d);const e=entry(d);let n=0;for(const x of items(key))n+=(e.s[x.id]||[]).filter(Boolean).length;return n/units(key)};
+const fmt=m=>{m=Math.round(m);let h=Math.floor(m/60)%24,mm=m%60;const ap=h>=12?'PM':'AM';h=h%12||12;return h+':'+String(mm).padStart(2,'0')+' '+ap};
+const dur=x=>x.s*x.w+(x.s-1)*x.rest+x.tr;
+const save=()=>{st.t=Date.now();try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}};
+const $=id=>document.getElementById(id);
+const CHK='<svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+function render(){
+  const info=dayInfo(sel),D=DAYS[info.key],e=entry(sel);
+  $('dlabel').textContent=sel.toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'short',year:'numeric'});
+  $('title').textContent=D.name;
+  const [hh,mi]=st.time.split(':').map(Number);let clock=hh*60+mi;
+  const total=items(info.key).reduce((a,x)=>a+dur(x),0)/60;
+  $('meta').innerHTML=info.before?'Before your plan start date':`Week ${info.week} · Day ${info.dayNo}`+(D.rest?' · Recovery':` · <b>${fmt(clock)} – ${fmt(clock+total)}</b> · ~${Math.round(total)} min`);
+  $('gotoday').hidden=iso(sel)===iso(today);
+  const p=pctOf(sel);$('pct').textContent=Math.round(p*100)+'%';$('arc').style.strokeDashoffset=226.2*(1-p);
+  let h='';
+  if(D.rest)h+=`<div class="rest"><h2>Rest &amp; recover</h2><p>No gym today. Hit 3.5–4 L of water, sleep well, and keep protein high. The extras below are optional and don't affect your streak.</p></div>`;
+  for(const[gt,list]of D.g){
+    const gm=list.reduce((a,x)=>a+dur(x),0)/60;
+    h+=`<section class="grp"><div class="gh"><h2>${esc(gt)}</h2><span>~${Math.max(1,Math.round(gm))} min</span></div>`;
+    for(const x of list){
+      const done=(e.s[x.id]||[]),cnt=done.filter(Boolean).length,fin=cnt===x.s;
+      const restTxt=x.rest&&x.s>1?` · rest ${x.rest>=60?x.rest/60+' min':x.rest+' s'}`:'';
+      const sets=x.s>1?`<b>${x.s} × ${esc(x.r)}</b>`:`<b>${esc(x.r)}</b>`;
+      let bub='';
+      if(x.s>1||x.kg){bub='<div class="sets">';if(x.s>1)for(let i=0;i<x.s;i++)bub+=`<button class="b${done[i]?' on':''}" data-x="${x.id}" data-i="${i}" aria-label="Set ${i+1}">${i+1}</button>`;
+        if(x.kg)bub+=`<input class="kg" inputmode="decimal" placeholder="kg" aria-label="Weight used in kg" data-kg="${x.id}" value="${esc(e.kg[x.id]||'')}">`;bub+='</div>'}
+      h+=`<div class="ex${fin?' fin':''}"><div class="t">${D.rest?'':fmt(clock)}</div><div><div class="n">${esc(x.n)}</div><div class="d">${sets}${restTxt}</div>${bub}</div><button class="chk${fin?' on':''}" data-all="${x.id}" aria-label="Mark ${esc(x.n)} done" aria-pressed="${fin}">${CHK}</button></div>`;
+      clock+=dur(x)/60;
+    }
+    h+='</section>';
+  }
+  $('list').innerHTML=h;
+  renderWeek();renderStats();renderCal();
+}
+function renderWeek(){
+  const s=add(sel,-((sel.getDay()+6)%7));let h='';
+  for(let i=0;i<7;i++){const d=add(s,i),inf=dayInfo(d),p=pctOf(d);
+    const c=['wd',iso(d)===iso(sel)?'sel':'',iso(d)===iso(today)?'istoday':'',!DAYS[inf.key].rest&&p>=1?'done':'',!DAYS[inf.key].rest&&p>0&&p<1?'part':''].join(' ');
+    const lab=DAYS[inf.key].rest?'Rest':inf.key==='UA'?'Upper A':inf.key==='LA'?'Lower A':inf.key==='UB'?'Upper B':'Lower B';
+    h+=`<button class="${c}" data-d="${iso(d)}"><small>${DN[d.getDay()]}</small><span class="num">${d.getDate()}</span><i>${lab}</i></button>`}
+  $('week').innerHTML=h;
+}
+function isWork(d){return !DAYS[dayInfo(d).key].rest&&!dayInfo(d).before}
+function renderStats(){
+  let streak=0,d=new Date(today);if(isWork(d)&&pctOf(d)<1)d=add(d,-1);
+  for(let k=0;k<400;k++){if(dayInfo(d).before)break;if(isWork(d)){if(pctOf(d)>=1)streak++;else break}d=add(d,-1)}
+  const ws=add(today,-((today.getDay()+6)%7));let wk=0,wt=0;for(let i=0;i<7;i++){const x=add(ws,i);if(isWork(x)){wt++;if(pctOf(x)>=1)wk++}}
+  let tot=0;for(const k in st.log){const x=parse(k);if(isWork(x)&&pctOf(x)>=1)tot++}
+  $('stats').innerHTML=`<div class="st"><span class="num">${streak}</span><small>workout streak</small></div><div class="st"><span class="num">${wk}/${wt}</span><small>this week</small></div><div class="st"><span class="num">${tot}</span><small>workouts done</small></div>`;
+}
+function renderCal(){
+  $('mtitle').textContent=mon.toLocaleDateString(undefined,{month:'long',year:'numeric'});
+  let h=['M','T','W','T','F','S','S'].map(x=>`<div class="h">${x}</div>`).join('');
+  const off=(mon.getDay()+6)%7;for(let i=0;i<off;i++)h+='<div class="e"></div>';
+  const n=new Date(mon.getFullYear(),mon.getMonth()+1,0).getDate();
+  for(let i=1;i<=n;i++){const d=new Date(mon.getFullYear(),mon.getMonth(),i),p=pctOf(d);let c='';
+    if(!isWork(d))c='rd';else if(p>=1)c='done';else if(p>0)c='part';else if(d<today)c='miss';
+    if(iso(d)===iso(today))c+=' tdy';h+=`<div class="${c}" data-d="${iso(d)}" role="button" tabindex="0" aria-label="${d.toDateString()}">${i}</div>`}
+  $('cal').innerHTML=h;
+}
+const setLog=(fn)=>{const k=iso(sel);const e=st.log[k]||{s:{},kg:{}};fn(e);st.log[k]=e;save();render()};
+document.addEventListener('click',ev=>{
+  const t=ev.target.closest('button,[data-d]');if(!t)return;
+  if(t.dataset.d){sel=parse(t.dataset.d);if(t.closest('#cal'))scrollTo({top:0,behavior:'smooth'});render();return}
+  if(t.dataset.x){const x=items(dayInfo(sel).key).find(y=>y.id===t.dataset.x);setLog(e=>{const a=(e.s[x.id]||Array(x.s).fill(false)).slice();a[+t.dataset.i]=!a[+t.dataset.i];e.s[x.id]=a})}
+  if(t.dataset.all){const x=items(dayInfo(sel).key).find(y=>y.id===t.dataset.all);setLog(e=>{const a=e.s[x.id]||[];const fin=a.filter(Boolean).length===x.s;e.s[x.id]=Array(x.s).fill(!fin)})}
+});
+document.addEventListener('keydown',ev=>{const t=ev.target;if(t.dataset&&t.dataset.d&&(ev.key==='Enter'||ev.key===' ')){ev.preventDefault();t.click()}});
+document.addEventListener('change',ev=>{const t=ev.target;if(t.dataset.kg){const k=iso(sel);const e=st.log[k]||{s:{},kg:{}};e.kg[t.dataset.kg]=t.value.trim().slice(0,12);st.log[k]=e;save()}});
+$('prev').onclick=()=>{sel=add(sel,-1);render()};$('next').onclick=()=>{sel=add(sel,1);render()};
+$('gotoday').onclick=()=>{sel=new Date(today);render()};
+$('mprev').onclick=()=>{mon=new Date(mon.getFullYear(),mon.getMonth()-1,1);renderCal()};
+$('mnext').onclick=()=>{mon=new Date(mon.getFullYear(),mon.getMonth()+1,1);renderCal()};
+$('alldone').onclick=()=>setLog(e=>{for(const x of items(dayInfo(sel).key))e.s[x.id]=Array(x.s).fill(true)});
+$('clr').onclick=()=>{$('cfm').classList.add('show');$('clr').hidden=true};
+$('cno').onclick=()=>{$('cfm').classList.remove('show');$('clr').hidden=false};
+$('cyes').onclick=()=>{$('cfm').classList.remove('show');$('clr').hidden=false;setLog(e=>{e.s={};e.kg={}})};
+$('start').value=st.start;$('stime').value=st.time;
+$('start').onchange=ev=>{if(ev.target.value){st.start=ev.target.value;save();render()}};
+$('stime').onchange=ev=>{if(ev.target.value){st.time=ev.target.value;save();render()}};
+render();
+$('bcopy').onclick=async()=>{const txt=JSON.stringify(st);try{await navigator.clipboard.writeText(txt);$('bmsg').textContent='Backup copied. Paste it somewhere safe.'}catch(e){$('bin').value=txt;$('bin').select();$('bmsg').textContent='Copy the text in the box above.'}};
+$('brest').onclick=()=>{try{const d=JSON.parse($('bin').value);if(!d||typeof d.log!=='object'||!d.start)throw 0;st={start:String(d.start),time:String(d.time||'18:00'),log:d.log,t:Date.now()};save();$('start').value=st.start;$('stime').value=st.time;render();$('bmsg').textContent='Backup restored.';$('bin').value=''}catch(e){$('bmsg').textContent="That doesn't look like a backup from this app."}};
+if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
